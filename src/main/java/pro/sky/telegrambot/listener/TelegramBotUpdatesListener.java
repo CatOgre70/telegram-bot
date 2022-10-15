@@ -8,9 +8,22 @@ import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.exceptions.AnswerNotFoundException;
+import pro.sky.telegrambot.model.Answer;
+import pro.sky.telegrambot.model.NotificationTask;
+import pro.sky.telegrambot.repository.NotificationsRepository;
+import pro.sky.telegrambot.service.AnswersService;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static java.time.format.DateTimeFormatter.*;
 
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
@@ -18,29 +31,137 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
 
     private final TelegramBot telegramBot;
+    private final AnswersService answersService;
 
-    public TelegramBotUpdatesListener(TelegramBot telegramBot) {
+    private final NotificationsRepository notificationsRepository;
+
+    private List<Answer> answersDb;
+    private String helpMessage;
+
+    public TelegramBotUpdatesListener(TelegramBot telegramBot, AnswersService answersService, NotificationsRepository notificationsRepository) {
         this.telegramBot = telegramBot;
+        this.answersService = answersService;
+        this.notificationsRepository = notificationsRepository;
     }
 
     @PostConstruct
     public void init() {
+
         telegramBot.setUpdatesListener(this);
+        answersDb = answersService.getAllAnswers();
+        boolean isFound = false;
+        for (Answer a : answersDb) {
+            if(a.getQuestion().equals("/help")){
+                isFound = true;
+                helpMessage = a.getAnswer();
+            }
+        }
+        if(!isFound){
+            String errorMessage = "Critical error: /help record was not found in the database!";
+            logger.error(errorMessage);
+            throw new AnswerNotFoundException(errorMessage);
+        }
     }
 
     @Override
     public int process(List<Update> updates) {
-        updates.forEach(update -> {
+        for (Update update : updates) {
             logger.info("Processing update: {}", update);
             // Process your updates here
-            if(update.message().text().equalsIgnoreCase("/start")) {
-                SendMessage message = new SendMessage(update.message().chat().id(), "Привет! Это самый тупой бот на свете! Автор - Василий Демин");
-                SendResponse response = telegramBot.execute(message);
-                if(!response.isOk()){
-                    logger.error("Response error: {} {}", response.errorCode(), response.message());
+            String inboundMessage = update.message().text();
+            if(inboundMessage.startsWith("/")) { // Analyse the command
+                boolean isFound = false;
+                for (Answer a : answersDb) {
+                    if(inboundMessage.equalsIgnoreCase(a.getQuestion())) {
+                        isFound = true;
+                        SendMessage message = new SendMessage(update.message().chat().id(), a.getAnswer());
+                        SendResponse response = telegramBot.execute(message);
+                        if(!response.isOk()){
+                            logger.error("Response error: {} {}", response.errorCode(), response.message());
+                        }
+                    }
+                }
+                if(!isFound){
+                    SendMessage message = new SendMessage(update.message().chat().id(),
+                            "Неверная команда\n"+ helpMessage);
+                    SendResponse response = telegramBot.execute(message);
+                    if(!response.isOk()){
+                        logger.error("Response error: {} {}", response.errorCode(), response.message());
+                    }
+                }
+            } else {
+                String dateString, notification;
+                LocalDateTime date;
+                NotificationTask notificationTask = new NotificationTask();
+                DateTimeFormatter dateFormatter = ofPattern("d MMMM uuuu", Locale.getDefault());
+                DateTimeFormatter timeFormatter = ofPattern("HH:mm", Locale.getDefault());
+                Pattern pattern = Pattern.compile("([0-9\\.\\:\\s]{16})(\\s)([\\W+]+)");
+                Matcher matcher = pattern.matcher(inboundMessage);
+                if (matcher.matches()) {
+                    dateString = matcher.group(1);
+                    notification = matcher.group(3);
+                    try {
+                        date = LocalDateTime.parse(dateString, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Wrong DATE or/and TIME format in the inbound message");
+                        SendMessage message = new SendMessage(update.message().chat().id(),
+                                "Неверный формат даты и времени\n"+ helpMessage);
+                        SendResponse response = telegramBot.execute(message);
+                        if(!response.isOk()){
+                            logger.error("Response error: {} {}", response.errorCode(), response.message());
+                        }
+                        continue;
+                    }
+                    if(date.isBefore(LocalDateTime.now())) {  // Checking if the input date is in the past
+                        logger.error("Error: DATE and TIME in the past!");
+                        SendMessage message = new SendMessage(update.message().chat().id(),
+                                "Дата и время указаны в прошлом\n"+ helpMessage);
+                        SendResponse response = telegramBot.execute(message);
+                        if(!response.isOk()){
+                            logger.error("Response error: {} {}", response.errorCode(), response.message());
+                        }
+                        continue;
+                    }
+                    notificationTask.setChatId(update.message().chat().id());
+                    notificationTask.setNotification(notification);
+                    notificationTask.setDateTime(date);
+                    if(notificationsRepository.existsByChatIdAndNotificationAndDateTime(update.message().chat().id(),
+                            notification, date)) {
+                        String errorMessage = "Notification Task with \nchatId: " + update.message().chat().id()
+                            + "\nnotification: " + notification + "\ndate: "
+                            + date.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter) + "\ntime: "
+                            + date.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter)
+                            + "\nwas already saved in the database";
+                        logger.error("Notification Task with such parameters was already saved in the database");
+                        SendMessage message = new SendMessage(update.message().chat().id(), errorMessage);
+                        SendResponse response = telegramBot.execute(message);
+                        if (!response.isOk()) {
+                            logger.error("Response error: {} {}", response.errorCode(), response.message());
+                        }
+                    } else {
+                        notificationsRepository.save(notificationTask);
+                        logger.info("New Notification Task was saved in the database");
+                        SendMessage message = new SendMessage(update.message().chat().id(),
+                                "Я напомню вам сделать:\n" + notification + "\n"
+                                        + date.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
+                                        + " в "
+                                        + date.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter));
+                        SendResponse response = telegramBot.execute(message);
+                        if (!response.isOk()) {
+                            logger.error("Response error: {} {}", response.errorCode(), response.message());
+                        }
+                    }
+                } else {
+                    SendMessage message = new SendMessage(update.message().chat().id(),
+                            "Неверный формат строки напоминания\n"+ helpMessage);
+                    SendResponse response = telegramBot.execute(message);
+                    if(!response.isOk()){
+                        logger.error("Response error: {} {}", response.errorCode(), response.message());
+                    }
                 }
             }
-        });
+
+        }
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
 
