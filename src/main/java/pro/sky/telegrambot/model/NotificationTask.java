@@ -20,6 +20,8 @@ public class NotificationTask {
 
     private LocalDateTime dateTime;
 
+    private boolean sent;
+
     public NotificationTask(){
         chatId = 0L;
         notification = "";
