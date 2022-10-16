@@ -9,12 +9,13 @@ import pro.sky.telegrambot.model.Answer;
 import pro.sky.telegrambot.repository.AnswersRepository;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Service
 public class AnswersService {
 
-    final AnswersRepository answersRepository;
+    private final AnswersRepository answersRepository;
     private final Logger logger = LoggerFactory.getLogger(AnswersService.class);
 
     public AnswersService(AnswersRepository answersRepository) {
@@ -23,14 +24,14 @@ public class AnswersService {
 
     }
 
-    public ArrayList<Answer> getAllAnswers(){
-        Optional<ArrayList<Answer>> result = answersRepository.getAllBy();
+    public List<Answer> getAllAnswers(){
+        ArrayList<Answer> result = answersRepository.getAllBy();
         if(result.isEmpty()){
             String message = "Answers was not found in the database";
             logger.error(message);
             throw new AnswerNotFoundException(message);
         }
-        return result.get();
+        return result;
     }
 
     public Answer getAnswerByQuestion(String question){

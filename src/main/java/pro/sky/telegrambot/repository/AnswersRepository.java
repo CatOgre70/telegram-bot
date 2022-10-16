@@ -11,6 +11,6 @@ import java.util.Optional;
 public interface AnswersRepository extends JpaRepository<Answer, String> {
 
     Optional<Answer> getAnswerByQuestion(String question);
-    Optional<ArrayList<Answer>> getAllBy();
+    ArrayList<Answer> getAllBy();
 
 }

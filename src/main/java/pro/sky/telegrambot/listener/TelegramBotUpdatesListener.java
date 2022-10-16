@@ -38,6 +38,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private List<Answer> answersDb;
     private String helpMessage;
 
+    private static final DateTimeFormatter dateFormatter = ofPattern("d MMMM uuuu", Locale.getDefault());
+    private static final DateTimeFormatter timeFormatter = ofPattern("HH:mm", Locale.getDefault());
+    private static final Pattern pattern = Pattern.compile("([0-9\\.\\:\\s]{16})(\\s)([\\W+]+)");
+
+    private static final DateTimeFormatter dateTimeFormatterForParsing = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
+
     public TelegramBotUpdatesListener(TelegramBot telegramBot, AnswersService answersService, NotificationsRepository notificationsRepository) {
         this.telegramBot = telegramBot;
         this.answersService = answersService;
@@ -74,52 +81,30 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 for (Answer a : answersDb) {
                     if(inboundMessage.equalsIgnoreCase(a.getQuestion())) {
                         isFound = true;
-                        SendMessage message = new SendMessage(update.message().chat().id(), a.getAnswer());
-                        SendResponse response = telegramBot.execute(message);
-                        if(!response.isOk()){
-                            logger.error("Response error: {} {}", response.errorCode(), response.message());
-                        }
+                        SendMessageToTelegram(update, a.getAnswer());
                     }
                 }
                 if(!isFound){
-                    SendMessage message = new SendMessage(update.message().chat().id(),
-                            "Неверная команда\n"+ helpMessage);
-                    SendResponse response = telegramBot.execute(message);
-                    if(!response.isOk()){
-                        logger.error("Response error: {} {}", response.errorCode(), response.message());
-                    }
+                    SendMessageToTelegram(update, "Неверная команда\n"+ helpMessage);
                 }
             } else {
                 String dateString, notification;
                 LocalDateTime date;
                 NotificationTask notificationTask = new NotificationTask();
-                DateTimeFormatter dateFormatter = ofPattern("d MMMM uuuu", Locale.getDefault());
-                DateTimeFormatter timeFormatter = ofPattern("HH:mm", Locale.getDefault());
-                Pattern pattern = Pattern.compile("([0-9\\.\\:\\s]{16})(\\s)([\\W+]+)");
                 Matcher matcher = pattern.matcher(inboundMessage);
                 if (matcher.matches()) {
                     dateString = matcher.group(1);
                     notification = matcher.group(3);
                     try {
-                        date = LocalDateTime.parse(dateString, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+                        date = LocalDateTime.parse(dateString, dateTimeFormatterForParsing);
                     } catch (IllegalArgumentException e) {
                         logger.error("Wrong DATE or/and TIME format in the inbound message");
-                        SendMessage message = new SendMessage(update.message().chat().id(),
-                                "Неверный формат даты и времени\n"+ helpMessage);
-                        SendResponse response = telegramBot.execute(message);
-                        if(!response.isOk()){
-                            logger.error("Response error: {} {}", response.errorCode(), response.message());
-                        }
+                        SendMessageToTelegram(update, "Неверный формат даты и времени\n"+ helpMessage);
                         continue;
                     }
                     if(date.isBefore(LocalDateTime.now())) {  // Checking if the input date is in the past
                         logger.error("Error: DATE and TIME in the past!");
-                        SendMessage message = new SendMessage(update.message().chat().id(),
-                                "Дата и время указаны в прошлом\n"+ helpMessage);
-                        SendResponse response = telegramBot.execute(message);
-                        if(!response.isOk()){
-                            logger.error("Response error: {} {}", response.errorCode(), response.message());
-                        }
+                        SendMessageToTelegram(update, "Дата и время указаны в прошлом\n"+ helpMessage);
                         continue;
                     }
                     notificationTask.setChatId(update.message().chat().id());
@@ -133,36 +118,31 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                             + date.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter)
                             + "\nwas already saved in the database";
                         logger.error("Notification Task with such parameters was already saved in the database");
-                        SendMessage message = new SendMessage(update.message().chat().id(), errorMessage);
-                        SendResponse response = telegramBot.execute(message);
-                        if (!response.isOk()) {
-                            logger.error("Response error: {} {}", response.errorCode(), response.message());
-                        }
+                        SendMessageToTelegram(update, errorMessage);
                     } else {
                         notificationsRepository.save(notificationTask);
                         logger.info("New Notification Task was saved in the database");
-                        SendMessage message = new SendMessage(update.message().chat().id(),
-                                "Я напомню вам сделать:\n" + notification + "\n"
-                                        + date.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
-                                        + " в "
-                                        + date.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter));
-                        SendResponse response = telegramBot.execute(message);
-                        if (!response.isOk()) {
-                            logger.error("Response error: {} {}", response.errorCode(), response.message());
-                        }
+                        String str = "Я напомню вам сделать:\n" + notification + "\n"
+                                + date.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
+                                + " в "
+                                + date.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter);
+                        SendMessageToTelegram(update, str);
                     }
                 } else {
-                    SendMessage message = new SendMessage(update.message().chat().id(),
-                            "Неверный формат строки напоминания\n"+ helpMessage);
-                    SendResponse response = telegramBot.execute(message);
-                    if(!response.isOk()){
-                        logger.error("Response error: {} {}", response.errorCode(), response.message());
-                    }
+                    SendMessageToTelegram(update, "Неверный формат строки напоминания\n"+ helpMessage);
                 }
             }
 
         }
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
+    }
+
+    public void SendMessageToTelegram(Update update, String textMessage){
+        SendMessage message = new SendMessage(update.message().chat().id(), textMessage);
+        SendResponse response = telegramBot.execute(message);
+        if(!response.isOk()){
+            logger.error("Response error: {} {}", response.errorCode(), response.message());
+        }
     }
 
 }

@@ -5,7 +5,6 @@ import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.listener.TelegramBotUpdatesListener;
@@ -25,11 +24,12 @@ public class TelegramBotNotificationsSender {
 
     private final Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
 
-    @Autowired
     private final TelegramBot telegramBot;
 
-    @Autowired
     private final NotificationsRepository notificationsRepository;
+
+    DateTimeFormatter dateFormatter = ofPattern("d MMMM uuuu", Locale.getDefault());
+    DateTimeFormatter timeFormatter = ofPattern("HH:mm", Locale.getDefault());
 
     public TelegramBotNotificationsSender(TelegramBot telegramBot, NotificationsRepository notificationsRepository) {
         this.telegramBot = telegramBot;
@@ -42,18 +42,14 @@ public class TelegramBotNotificationsSender {
 
         LocalDateTime dateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
         List<NotificationTask> notificationTasks = notificationsRepository.findAllByDateTime(dateTime);
-        if (!notificationTasks.isEmpty()) {
-            for (NotificationTask n : notificationTasks) {
-                DateTimeFormatter dateFormatter = ofPattern("d MMMM uuuu", Locale.getDefault());
-                DateTimeFormatter timeFormatter = ofPattern("HH:mm", Locale.getDefault());
-                String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
-                        + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"
-                + " Напоминание: " + n.getNotification();
-                SendMessage message = new SendMessage(n.getChatId(), messageText);
-                SendResponse response = telegramBot.execute(message);
-                if (!response.isOk()) {
-                    logger.error("Response error: {} {}", response.errorCode(), response.message());
-                }
+        for (NotificationTask n : notificationTasks) {
+            String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
+                    + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"
+                    + " Напоминание: " + n.getNotification();
+            SendMessage message = new SendMessage(n.getChatId(), messageText);
+            SendResponse response = telegramBot.execute(message);
+            if (!response.isOk()) {
+                logger.error("Response error: {} {}", response.errorCode(), response.message());
             }
         }
     }
