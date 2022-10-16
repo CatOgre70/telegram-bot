@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.listener.TelegramBotUpdatesListener;
 import pro.sky.telegrambot.model.NotificationTask;
-import pro.sky.telegrambot.repository.NotificationsRepository;
+import pro.sky.telegrambot.service.NotificationsService;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -26,14 +26,14 @@ public class TelegramBotNotificationsSender {
 
     private final TelegramBot telegramBot;
 
-    private final NotificationsRepository notificationsRepository;
+    private final NotificationsService notificationsService;
 
     DateTimeFormatter dateFormatter = ofPattern("d MMMM uuuu", Locale.getDefault());
     DateTimeFormatter timeFormatter = ofPattern("HH:mm", Locale.getDefault());
 
-    public TelegramBotNotificationsSender(TelegramBot telegramBot, NotificationsRepository notificationsRepository) {
+    public TelegramBotNotificationsSender(TelegramBot telegramBot, NotificationsService notificationsService) {
         this.telegramBot = telegramBot;
-        this.notificationsRepository = notificationsRepository;
+        this.notificationsService = notificationsService;
     }
 
 
@@ -41,7 +41,7 @@ public class TelegramBotNotificationsSender {
     public void notificationSender(){
 
         LocalDateTime dateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
-        List<NotificationTask> notificationTasks = notificationsRepository.findAllByDateTime(dateTime);
+        List<NotificationTask> notificationTasks = notificationsService.findAllByDateTime(dateTime);
         for (NotificationTask n : notificationTasks) {
             String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
                     + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"

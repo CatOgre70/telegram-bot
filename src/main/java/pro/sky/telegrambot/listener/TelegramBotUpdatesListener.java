@@ -11,8 +11,8 @@ import org.springframework.stereotype.Service;
 import pro.sky.telegrambot.exceptions.AnswerNotFoundException;
 import pro.sky.telegrambot.model.Answer;
 import pro.sky.telegrambot.model.NotificationTask;
-import pro.sky.telegrambot.repository.NotificationsRepository;
 import pro.sky.telegrambot.service.AnswersService;
+import pro.sky.telegrambot.service.NotificationsService;
 
 import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
@@ -33,7 +33,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private final TelegramBot telegramBot;
     private final AnswersService answersService;
 
-    private final NotificationsRepository notificationsRepository;
+    private final NotificationsService notificationsService;
 
     private List<Answer> answersDb;
     private String helpMessage;
@@ -45,10 +45,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private static final DateTimeFormatter dateTimeFormatterForParsing = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
 
-    public TelegramBotUpdatesListener(TelegramBot telegramBot, AnswersService answersService, NotificationsRepository notificationsRepository) {
+    public TelegramBotUpdatesListener(TelegramBot telegramBot, AnswersService answersService, NotificationsService notificationsService) {
         this.telegramBot = telegramBot;
         this.answersService = answersService;
-        this.notificationsRepository = notificationsRepository;
+        this.notificationsService = notificationsService;
     }
 
     @PostConstruct
@@ -110,7 +110,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     notificationTask.setChatId(update.message().chat().id());
                     notificationTask.setNotification(notification);
                     notificationTask.setDateTime(date);
-                    if(notificationsRepository.existsByChatIdAndNotificationAndDateTime(update.message().chat().id(),
+                    if(notificationsService.existsByChatIdAndNotificationAndDateTime(update.message().chat().id(),
                             notification, date)) {
                         String errorMessage = "Notification Task with \nchatId: " + update.message().chat().id()
                             + "\nnotification: " + notification + "\ndate: "
@@ -120,7 +120,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                         logger.error("Notification Task with such parameters was already saved in the database");
                         SendMessageToTelegram(update, errorMessage);
                     } else {
-                        notificationsRepository.save(notificationTask);
+                        notificationsService.save(notificationTask);
                         logger.info("New Notification Task was saved in the database");
                         String str = "Я напомню вам сделать:\n" + notification + "\n"
                                 + date.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
