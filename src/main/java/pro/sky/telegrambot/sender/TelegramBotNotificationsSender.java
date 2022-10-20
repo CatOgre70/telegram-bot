@@ -1,6 +1,7 @@
 package pro.sky.telegrambot.sender;
 
 import com.pengrad.telegrambot.TelegramBot;
+import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
@@ -40,18 +41,47 @@ public class TelegramBotNotificationsSender {
     @Scheduled(cron = "0 0/1 * * * *")
     public void notificationSender(){
 
+        // Sending current messages
         LocalDateTime dateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
         List<NotificationTask> notificationTasks = notificationsService.findAllByDateTime(dateTime);
-        for (NotificationTask n : notificationTasks) {
+        for (int i = 0; i < notificationTasks.size(); i++) {
+            NotificationTask n = notificationTasks.get(i);
             String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
                     + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"
                     + " Напоминание: " + n.getNotification();
-            SendMessage message = new SendMessage(n.getChatId(), messageText);
-            SendResponse response = telegramBot.execute(message);
+
+            SendResponse response = SendMessageToTelegram(n.getChatId(), messageText);
             if (!response.isOk()) {
                 logger.error("Response error: {} {}", response.errorCode(), response.message());
+                continue;
             }
+            n.setSent(true);
+            notificationsService.save(n);
         }
+
+        // Sending outdated messages
+        notificationTasks = notificationsService.findNotificationTaskByDateTimeBeforeAndSent(dateTime, false);
+
+        for (int i = 0; i < notificationTasks.size(); i++) {
+            NotificationTask n = notificationTasks.get(i);
+            String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
+                    + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"
+                    + " Пропущенное напоминание: " + n.getNotification();
+            SendResponse response = SendMessageToTelegram(n.getChatId(), messageText);
+            if (!response.isOk()) {
+                logger.error("Response error: {} {}", response.errorCode(), response.message());
+                continue;
+            }
+            n.setSent(true);
+            notificationsService.save(n);
+        }
+
+    }
+
+    public SendResponse SendMessageToTelegram(Long chatId, String textMessage){
+        SendMessage message = new SendMessage(chatId, textMessage);
+        SendResponse response = telegramBot.execute(message);
+        return response;
     }
 
 }

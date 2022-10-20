@@ -26,12 +26,14 @@ public class NotificationTask {
         chatId = 0L;
         notification = "";
         dateTime = LocalDateTime.now();
+        sent = false;
     }
 
-    public NotificationTask(Long chatId, String notification, LocalDateTime dateTime) {
+    public NotificationTask(Long chatId, String notification, LocalDateTime dateTime, boolean sent) {
         this.chatId = chatId;
         this.notification = notification;
         this.dateTime = dateTime;
+        this.sent = sent;
     }
 
     public Long getId() {
@@ -60,6 +62,14 @@ public class NotificationTask {
 
     public void setDateTime(LocalDateTime dateTime) {
         this.dateTime = dateTime;
+    }
+
+    public boolean isSent() {
+        return sent;
+    }
+
+    public void setSent(boolean sent) {
+        this.sent = sent;
     }
 
     @Override

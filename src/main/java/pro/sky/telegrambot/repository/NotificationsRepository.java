@@ -12,5 +12,6 @@ public interface NotificationsRepository extends JpaRepository<NotificationTask,
 
     boolean existsByChatIdAndNotificationAndDateTime(Long chatId, String notification, LocalDateTime dateTime);
     List<NotificationTask> findAllByDateTime(LocalDateTime dateTime);
+    List<NotificationTask> findNotificationTaskByDateTimeBeforeAndSent(LocalDateTime dateTime, boolean sent);
 
 }

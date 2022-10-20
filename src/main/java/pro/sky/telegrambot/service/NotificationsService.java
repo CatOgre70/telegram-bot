@@ -27,4 +27,8 @@ public class NotificationsService {
     public void save(NotificationTask notificationTask) {
         notificationsRepository.save(notificationTask);
     }
+
+    public List<NotificationTask> findNotificationTaskByDateTimeBeforeAndSent(LocalDateTime dateTime, boolean sent){
+        return notificationsRepository.findNotificationTaskByDateTimeBeforeAndSent(dateTime, sent);
+    }
 }

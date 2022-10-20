@@ -87,7 +87,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 if(!isFound){
                     SendMessageToTelegram(update, "Неверная команда\n"+ helpMessage);
                 }
-            } else {
+            } else { // Parse the notification
                 String dateString, notification;
                 LocalDateTime date;
                 NotificationTask notificationTask = new NotificationTask();
@@ -110,6 +110,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     notificationTask.setChatId(update.message().chat().id());
                     notificationTask.setNotification(notification);
                     notificationTask.setDateTime(date);
+                    notificationTask.setSent(false);
                     if(notificationsService.existsByChatIdAndNotificationAndDateTime(update.message().chat().id(),
                             notification, date)) {
                         String errorMessage = "Notification Task with \nchatId: " + update.message().chat().id()
