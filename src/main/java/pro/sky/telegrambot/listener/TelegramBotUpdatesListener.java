@@ -53,7 +53,6 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     @PostConstruct
     public void init() {
-
         telegramBot.setUpdatesListener(this);
         answersDb = answersService.getAllAnswers();
         boolean isFound = false;
