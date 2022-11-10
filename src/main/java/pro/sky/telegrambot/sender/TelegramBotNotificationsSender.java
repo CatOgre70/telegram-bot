@@ -1,7 +1,6 @@
 package pro.sky.telegrambot.sender;
 
 import com.pengrad.telegrambot.TelegramBot;
-import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
@@ -44,8 +43,7 @@ public class TelegramBotNotificationsSender {
         // Sending current messages
         LocalDateTime dateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
         List<NotificationTask> notificationTasks = notificationsService.findAllByDateTime(dateTime);
-        for (int i = 0; i < notificationTasks.size(); i++) {
-            NotificationTask n = notificationTasks.get(i);
+        for (NotificationTask n : notificationTasks) {
             String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
                     + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"
                     + " Напоминание: " + n.getNotification();
@@ -62,8 +60,7 @@ public class TelegramBotNotificationsSender {
         // Sending outdated messages
         notificationTasks = notificationsService.findNotificationTaskByDateTimeBeforeAndSent(dateTime, false);
 
-        for (int i = 0; i < notificationTasks.size(); i++) {
-            NotificationTask n = notificationTasks.get(i);
+        for (NotificationTask n : notificationTasks) {
             String messageText = "[" + dateTime.truncatedTo(ChronoUnit.MINUTES).format(dateFormatter)
                     + ", " + dateTime.truncatedTo(ChronoUnit.MINUTES).format(timeFormatter) + "]"
                     + " Пропущенное напоминание: " + n.getNotification();
@@ -80,8 +77,7 @@ public class TelegramBotNotificationsSender {
 
     public SendResponse SendMessageToTelegram(Long chatId, String textMessage){
         SendMessage message = new SendMessage(chatId, textMessage);
-        SendResponse response = telegramBot.execute(message);
-        return response;
+        return telegramBot.execute(message);
     }
 
 }
