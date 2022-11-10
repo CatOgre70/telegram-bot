@@ -91,7 +91,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     if (!response.isOk()) {
                         logger.error("Response error: {} {}", response.errorCode(), response.message());
                     }
-                } else if (inboundMessage.startsWith("/")) { // Analyse the command except '/menu'
+                } else if (inboundMessage.startsWith("/")) { // Analysing commands except '/menu'
                     boolean isFound = false;
                     for (Answer a : answersDb) {
                         if (inboundMessage.equalsIgnoreCase(a.getQuestion())) {
