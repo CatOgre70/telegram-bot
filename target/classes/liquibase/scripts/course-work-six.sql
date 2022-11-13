@@ -20,3 +20,6 @@ CREATE TABLE answers(
 CREATE INDEX question_index ON answers (question);
 INSERT INTO answers (question, answer) VALUES ('/start', E'Привет! Это самый тупой бот на свете! Автор - Василий Демин\n/help - подсказка');
 INSERT INTO answers (question, answer) VALUES ('/help', E'Использование:\n/start - начало работы с ботом\n/help - вызов подсказки\ndd.MM.yy HH:mm <Текст напоминания> - создать напоминание');
+
+-- changeset vasilydemin:4
+UPDATE answers SET answer = E'Использование:\n/start - начало работы с ботом\n/help - вызов подсказки\n/menu - вызов главного меню\ndd.MM.yy HH:mm <Текст напоминания> - создать напоминание' WHERE question = '/help';
