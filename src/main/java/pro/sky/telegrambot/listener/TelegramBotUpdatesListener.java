@@ -149,7 +149,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                     }
                 }
 
-            } else { // Callback answer processing
+            } else if (update.callbackQuery() != null) { // Callback answer processing
                 if(update.callbackQuery().data().equals("callback_data")){
                     SendMessageToTelegram(update, "Ай! Ты нажал кнопку 'callback_data'!");
                 }
